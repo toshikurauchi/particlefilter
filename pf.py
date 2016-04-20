@@ -41,7 +41,7 @@ class Particle(object):
             y: the y-coordinate of the hypothesis relative ot the map frame
             theta: the yaw of the hypothesis relative to the map frame
             w: the particle weight (the class does not ensure that particle weights are normalized
-    """
+    """ 
 
     def __init__(self,x=0.0,y=0.0,theta=0.0,w=1.0):
         """ Construct a new Particle
@@ -60,6 +60,9 @@ class Particle(object):
         return Pose(position=Point(x=self.x,y=self.y,z=0), orientation=Quaternion(x=orientation_tuple[0], y=orientation_tuple[1], z=orientation_tuple[2], w=orientation_tuple[3]))
 
     # TODO: define additional helper functions if needed
+    def normalize(self, Z):
+        """ Ajusta o peso da particula usando o fator de normalizacao (Z) """
+        self.w /= Z
 
 class ParticleFilter:
     """ The class that represents a Particle Filter ROS Node

@@ -64,6 +64,10 @@ class OccupancyField(object):
         nbrs = NearestNeighbors(n_neighbors=1,algorithm="ball_tree").fit(O)
         distances, indices = nbrs.kneighbors(X)
 
+        print("Using scikit-learn to compute nearest neighbors")
+        self.distances = distances
+        self.indices = indices
+
         self.closest_occ = {}
         curr = 0
         for i in range(self.map.info.width):
@@ -71,6 +75,7 @@ class OccupancyField(object):
                 ind = i + j*self.map.info.width
                 self.closest_occ[ind] = distances[curr][0]*self.map.info.resolution
                 curr += 1
+        self.total_occupied = total_occupied
 
     def get_closest_obstacle_distance(self,x,y):
         """ Compute the closest obstacle to the specified (x,y) coordinate in the map.  If the (x,y) coordinate

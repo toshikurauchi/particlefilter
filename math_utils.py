@@ -2,6 +2,7 @@ import math
 
 
 EPS = 1e-8
+THETA_EPS = .0002 # Approximately .01 degree
 
 
 def dist_sq(p1, p2):

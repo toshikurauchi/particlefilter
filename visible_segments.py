@@ -3,7 +3,7 @@ import bisect
 import attr
 import numpy as np
 
-from math_utils import EPS, dist_sq, my_atan2
+from math_utils import EPS, THETA_EPS, dist_sq, my_atan2
 from segment import Segment
 
 
@@ -76,10 +76,10 @@ def create_non_intersecting_segments(pts1, pts2, segs2, angles, ref):
     if pts1[3] is not None:
         segment.merge(Segment(pts1[2], pts1[3], angles[2], angles[3], ref))
     segments.append(segment)
-    if segs2[0] is not None:
-        segments = [Segment(pts2[0], pts2[1], angles[0], angles[1], ref)] + segments
-    if segs2[2] is not None:
-        segments.append(Segment(pts2[2], pts2[3], angles[2], angles[3], ref))
+    if segs2[0] is not None and segs2[0].length > EPS:
+        segments = [segs2[0]] + segments
+    if segs2[2] is not None and segs2[2].length > EPS:
+        segments.append(segs2[2])
     return segments
 
 
@@ -113,10 +113,10 @@ def create_intersecting_segments(pts1, pts2, segs1, segs2, angles, ref):
         segments[0].merge(Segment(pts1[0], pts1[1], angles[0], angles[1], ref))
     if pts2[3] is not None:
         segments[1].merge(Segment(pts2[2], pts2[3], angles[2], angles[3], ref))
-    if segs2[0] is not None:
-        segments = [Segment(pts2[0], pts2[1], angles[0], angles[1], ref)] + segments
-    if segs1[2] is not None:
-        segments.append(Segment(pts1[2], pts1[3], angles[2], angles[3], ref))
+    if segs2[0] is not None and segs2[0].length > EPS:
+        segments = [segs2[0]] + segments
+    if segs1[2] is not None and segs1[2].length > EPS:
+        segments.append(segs1[2])
     return segments
 
 
@@ -145,8 +145,19 @@ def intersect_segments(n1, n2):
     pts2 = [n2.intersect(ref, d)[1] for d in directs]
     segs1 = [make_segment(p1, p2, ref) for p1, p2 in zip(pts1[:-1], pts1[1:])]
     segs2 = [make_segment(p1, p2, ref) for p1, p2 in zip(pts2[:-1], pts2[1:])]
-    # The intersection (segsX[1]) always exists
-    # But we don't know about the others (segsX[0] and segsX[2] may be None)
+    # In theory the intersection (segsX[1]) always exists, but may be too small
+    # We don't know about the others (segsX[0] and segsX[2] may be None)
+    if segs1[1] is None or segs2[1] is None:
+        segs = []
+        if segs1[1] is None:
+            segs += [seg for seg in segs1 if seg is not None]
+        else:
+            segs += [n1]
+        if segs2[1] is None:
+            segs += [seg for seg in segs2 if seg is not None]
+        else:
+            segs += [n2]
+        return segs
     d11 = dist_sq(segs1[1].p1, ref)
     d12 = dist_sq(segs1[1].p2, ref)
     d21 = dist_sq(segs2[1].p1, ref)
@@ -202,11 +213,13 @@ class VisibleSegments:
             self._add_segment_r(seg)
 
     def _add_segment_r(self, segment):
+        if abs(segment.theta1 - segment.theta2) < THETA_EPS:
+            return
         i = bisect.bisect(self.segments, segment)
-        if i > 0 and self.segments[i-1].theta2 > segment.theta1:
+        if i > 0 and self.segments[i-1].theta2 > segment.theta1 + THETA_EPS:
             self._readd_intersecting(i-1, segment)
         elif i < len(self.segments) - 1 and \
-            self.segments[i+1].theta1 < segment.theta2:
+            self.segments[i+1].theta1 + THETA_EPS < segment.theta2:
             self._readd_intersecting(i+1, segment)
         else:
             self.segments.insert(i, segment)

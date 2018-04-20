@@ -1,8 +1,9 @@
 import math
+import random
 import attr
 import numpy as np
 
-from math_utils import EPS, my_atan2
+from math_utils import EPS, THETA_EPS, my_atan2, dist
 
 
 @attr.s(cmp=False)
@@ -23,7 +24,7 @@ class Segment:
     p2 = attr.ib()
     _theta1 = attr.ib(default=None)
     _theta2 = attr.ib(default=None)
-    ref = attr.ib(default=attr.Factory(lambda: np.array([0, 0])))
+    _ref = attr.ib(default=attr.Factory(lambda: np.array([0, 0])))
 
     @property
     def theta1(self):
@@ -41,7 +42,7 @@ class Segment:
         if self._theta2 is None:
             self._theta2 = my_atan2(self.p2[1] - self.ref[1],
                                     self.p2[0] - self.ref[0])
-            if self._theta2  < EPS and self._theta2 < self._theta1:
+            if self._theta2 < EPS and self._theta2 < self.theta1:
                 self._theta2 = 2 * math.pi
         return self._theta2
 
@@ -49,26 +50,43 @@ class Segment:
     def theta2(self, t2):
         self._theta2 = t2
 
+    @property
+    def ref(self):
+        return self._ref
+
+    @ref.setter
+    def ref(self, ref):
+        self.ref = ref
+        self._theta1 = None
+        self._theta2 = None
+
+    @property
+    def length(self):
+        return dist(self.p1, self.p2)
+
     def __eq__(self, other):
         if other.__class__ is not self.__class__:
             return NotImplemented
         return np.allclose(self.p1, other.p1) and \
                np.allclose(self.p2, other.p2) and \
-               abs(self.theta1 - other.theta1) < EPS and \
-               abs(self.theta2 - other.theta2) < EPS and \
+               abs(self.theta1 - other.theta1) < THETA_EPS and \
+               abs(self.theta2 - other.theta2) < THETA_EPS and \
                np.allclose(self.ref, other.ref)
 
+    def __hash__(self):
+        return hash((tuple(self.p1), tuple(self.p2)))
+
     def __lt__(self, other):
-        return self.theta2 < other.theta1
+        return self.theta2 < other.theta1 + THETA_EPS
 
     def __le__(self, other):
-        return self.theta2 <= other.theta1
+        return self.theta2 <= other.theta1 + THETA_EPS
 
     def __gt__(self, other):
-        return self.theta1 > other.theta2
+        return self.theta1 + THETA_EPS > other.theta2
 
     def __ge__(self, other):
-        return self.theta1 >= other.theta2
+        return self.theta1 + THETA_EPS >= other.theta2
 
     def merge(self, other):
         """Incorporates other Segment into self.
@@ -117,3 +135,11 @@ class Segment:
         if r < -EPS or s < -EPS or s > 1+EPS:
             return False, None
         return True, np.array([px + r * ctheta, py + r * stheta])
+
+
+def random_segment(origin, min_value=0, max_value=10, min_len=1, max_len=10):
+    p1 = np.array([random.uniform(min_value, max_value), random.uniform(min_value, max_value)])
+    theta = random.uniform(0, 2*math.pi)
+    length = random.uniform(min_len, max_len)
+    p2 = np.array([p1[0] + length*math.cos(theta), p1[1] + length*math.sin(theta)])
+    return Segment(p1, p2, ref=origin)

@@ -9,19 +9,18 @@ from math_utils import dist
 Intersection = namedtuple('Intersection', 'theta, segment, intersection, distance')
 
 
-def segment_limits(segment):
-    min_i = math.ceil(math.degrees(segment.theta1))
-    max_i = math.floor(math.degrees(segment.theta2))
-    return min_i, max_i
+def to_key(f):
+    return round(f, 5)
 
 
 class IntersectionFinder:
     def __init__(self, ref=None):
         if ref is None:
-            ref = np.array([0, 0])
+            ref = [0, 0]
         self.ref = ref
-        self._angles = [None for _ in range(0, 361, 1)]
-        self._lims = []
+        # keys are the initial angle
+        self._segments = {}
+        self._ends = {}
 
     def add_segments(self, segments):
         for segment in segments:
@@ -33,46 +32,59 @@ class IntersectionFinder:
             self._add_segment(seg)
 
     def _add_segment(self, segment):
-        min_i, max_i = segment_limits(segment)
-
-        i = min_i
-        while i <= max_i:
-            seg0 = self._angles[i]
-            if seg0 is None:
-                self._angles[i] = segment
-            elif seg0 != segment:
-                last_i = math.floor(math.degrees(seg0.theta2))
-                new_segments = intersect_segments(seg0, segment)
-                for seg1 in new_segments[:-1]:
-                    min_i1, max_i1 = segment_limits(seg1)
-                    l = max_i1+1-min_i1
-                    self._angles[min_i1:max_i1+1] = [seg1 for _ in range(l)]
+        ints = self._find_intersections(segment.theta1, segment.theta2)
+        if ints:
+            for intersection in ints:
+                s = to_key(intersection.theta1)
+                del self._segments[s]
+                del self._ends[s]
+                new_segments = intersect_segments(intersection, segment)
+                for new_seg in new_segments:
+                    self._force_add(new_seg)
                 segment = new_segments[-1]
-                min_i1, max_i1 = segment_limits(segment)
-                for j in range(min_i1, max_i1+1):
-                    if self._angles[j] is None or j <= last_i:
-                        self._angles[j] = segment
-                    else:
-                        break
-                i = last_i
-            i += 1
+        else:
+            self._force_add(segment)
 
-    def compute_intersections(self):
+    def _force_add(self, segment):
+        s0, s1 = to_key(segment.theta1), to_key(segment.theta2)
+        self._segments[s0] = segment
+        self._ends[s0] = s1
+
+    def _find_intersections(self, s0, s1):
+        segs = []
+        for ang in sorted(self._segments.keys()):
+            e_ang = self._ends[ang]
+            if ang <= s0 <= e_ang or ang <= s1 <= e_ang or \
+               s0 <= ang <= s1 or s0 <= e_ang <= s1:
+                segs.append(self._segments[ang])
+            elif s1 < ang:
+                break
+        return segs
+
+    def compute_intersections(self, step=1):
         intersections = []
-        for i, seg in enumerate(self._angles):
-            if seg is not None:
-                trad = math.radians(i)
-                direction = np.array([math.cos(trad), math.sin(trad)])
-                exists, int_pt = seg.intersect(self.ref, direction)
+        segs = self.segments
+        seg_iter = iter(segs)
+        cur_seg = next(seg_iter, None)
+        for i in range(0, 360+step, step):
+            trad = math.radians(i)
+            while cur_seg is not None and cur_seg.theta2 < trad:
+                cur_seg = next(seg_iter, None)
+            if cur_seg is None:
+                break
+
+            if cur_seg.theta1 <= trad <= cur_seg.theta2:
+                direction = [math.cos(trad), math.sin(trad)]
+                exists, int_pt = cur_seg.intersect(self.ref, direction)
                 if exists:
-                    new_int = Intersection(trad, seg, int_pt, dist(self.ref, int_pt))
+                    new_int = Intersection(trad, cur_seg, int_pt, dist(self.ref, int_pt))
                     intersections.append(new_int)
 
         return intersections
 
     @property
     def segments(self):
-        return sorted(list(set([seg for seg in self._angles if seg is not None])), key=lambda s: s.theta1)
+        return list(sorted(self._segments.values(), key=lambda s: s.theta1))
 
 
 def find_intersections(p, segments):
@@ -80,7 +92,7 @@ def find_intersections(p, segments):
     Finds the closest intersection between rays starting at p and the line segments.
 
     Args:
-        p (np.array): rays' starting point (x, y)
+        p (list): rays' starting point (x, y)
         segments (list[Segment]): list of line segments (Segment)
 
     Return:

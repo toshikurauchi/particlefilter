@@ -14,7 +14,7 @@ def find_intersections(p, segments, step=1):
     Finds the closest intersection between rays starting at p and the line segments.
 
     Args:
-        p (np.array): rays' starting point (x, y)
+        p (list): rays' starting point (x, y)
         segments (list[Segment]): list of line segments (Segment)
         step (float): step between rays (degrees). Default: 1
 
@@ -37,7 +37,7 @@ def find_intersections(p, segments, step=1):
             break
 
         if segment.theta1 <= trad:
-            exists, intersection = segment.intersect(p, np.array([math.cos(trad), math.sin(trad)]))
+            exists, intersection = segment.intersect(p, [math.cos(trad), math.sin(trad)])
             if exists:
                 intersections.append(Intersection(theta, segment, intersection, dist(p, intersection)))
     return intersections, visible.segments

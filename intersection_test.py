@@ -208,7 +208,10 @@ def main():
         t0 = time.time()
         find_intersections(origin, segments)
         times.append(time.time() - t0)
+    mt = np.mean(times)
     print(times)
+    print('Mean: {:.4f}'.format(mt))
+    print('{:.2f} fps'.format(1/mt))
 
 
 if __name__ == '__main__':

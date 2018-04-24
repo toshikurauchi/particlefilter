@@ -2,12 +2,15 @@ import math
 
 
 EPS = 1e-8
+EPS_SQ = EPS * EPS
 THETA_EPS = .0002 # Approximately .01 degree
 
 
 def dist_sq(p1, p2):
     """Square distance between points p1 and p2"""
-    return (p1[0] - p2[0])**2 + (p1[1] - p2[1])**2
+    x = p1[0] - p2[0]
+    y = p1[1] - p2[1]
+    return x*x + y*y
 
 
 def dist(p1, p2):

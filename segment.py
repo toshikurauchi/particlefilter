@@ -3,7 +3,7 @@ import random
 import attr
 import numpy as np
 
-from math_utils import EPS, THETA_EPS, my_atan2, dist
+from math_utils import EPS, THETA_EPS, my_atan2, dist, dist_sq
 
 
 @attr.s(cmp=False)
@@ -11,20 +11,20 @@ class Segment:
     """Line segment.
 
     Attributes:
-        p1 (np.array): starting point
-        p2 (np.array): ending point
+        p1 (list): starting point
+        p2 (list): ending point
         theta1 (float): counterclockwise rotation from vector [1, 0] to p1
             using ref as the origin
         theta2 (float): counterclockwise rotation from vector [1, 0] to p2
             using ref as the origin
-        ref (np.array): reference point to be used by the algorithm
+        ref (list): reference point to be used by the algorithm
     """
 
     p1 = attr.ib()
     p2 = attr.ib()
     _theta1 = attr.ib(default=None)
     _theta2 = attr.ib(default=None)
-    _ref = attr.ib(default=attr.Factory(lambda: np.array([0, 0])))
+    _ref = attr.ib(default=attr.Factory(lambda: [0, 0]))
 
     @property
     def theta1(self):
@@ -63,6 +63,10 @@ class Segment:
     @property
     def length(self):
         return dist(self.p1, self.p2)
+
+    @property
+    def length_sq(self):
+        return dist_sq(self.p1, self.p2)
 
     def __eq__(self, other):
         if other.__class__ is not self.__class__:
@@ -104,19 +108,26 @@ class Segment:
             self.theta2 = other.theta2
             self.p2 = other.p2
 
-    def intersect(self, orig, direct):
+    def intersect(self, orig, direct, angle=None):
         """Finds intersection between ray and self.
 
         Args:
-            orig (np.array): ray's starting point
-            direct (np.array): ray's direction
+            orig (list): ray's starting point
+            direct (list): ray's direction
 
         Return:
             exists, intersection: exists is a boolean indicating if the
             intersection point exists.
         """
+        # Shortcut
+        if angle is not None and (angle < self.theta1 or angle > self.theta2):
+            return False, None
+
         # Init vars
-        direct = direct / np.linalg.norm(direct)
+        nsq = direct[0]**2 + direct[1]**2
+        if abs(nsq - 1) > EPS:
+            norm = math.sqrt(nsq)
+            direct = [direct[0] / norm, direct[1] / norm]
         ctheta, stheta = direct
         px, py = orig
         x1, y1 = self.p1
@@ -134,12 +145,12 @@ class Segment:
 
         if r < -EPS or s < -EPS or s > 1+EPS:
             return False, None
-        return True, np.array([px + r * ctheta, py + r * stheta])
+        return True, [px + r * ctheta, py + r * stheta]
 
 
 def random_segment(origin, min_value=0, max_value=10, min_len=1, max_len=10):
-    p1 = np.array([random.uniform(min_value, max_value), random.uniform(min_value, max_value)])
+    p1 = [random.uniform(min_value, max_value), random.uniform(min_value, max_value)]
     theta = random.uniform(0, 2*math.pi)
     length = random.uniform(min_len, max_len)
-    p2 = np.array([p1[0] + length*math.cos(theta), p1[1] + length*math.sin(theta)])
+    p2 = [p1[0] + length*math.cos(theta), p1[1] + length*math.sin(theta)]
     return Segment(p1, p2, ref=origin)

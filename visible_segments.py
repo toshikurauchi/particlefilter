@@ -49,6 +49,11 @@ def create_segments(segment, ref=None):
 
 
 def _crossing_x(x1, y1, x2, y2):
+    '''
+    Verifies if segment defined by (x1, y1) and (x2, y2) crosses the positive
+    x axis. If so, returns the value for x where the segment crosses the x
+    axis. Otherwise returns a negative number.
+    '''
     if (y1 > 0 and y2 > 0) or (y1 < 0 and y2 < 0) or (x1 < 0 and x2 < 0) \
         or abs(y1/x1) <= EPS or abs(y2/x2) <= EPS:
         return -float('inf')
@@ -216,56 +221,3 @@ def intersect_segments(n1, n2):
         return create_intersecting_segments(pts1, pts2, segs1, segs2, angles, ref)
     else:
         return create_intersecting_segments(pts2, pts1, segs2, segs1, angles, ref)
-
-
-@attr.s
-class VisibleSegments:
-    """Data structure that keeps an updated list that contains only the
-    Segments that are visible from ref.
-
-    Attributes:
-        ref (list): 2D reference point
-        segments (list[Segment]): list with all Segments that are visible from
-            ref
-    """
-    _ref = attr.ib(default=attr.Factory(lambda: [0, 0]))
-    segments = attr.ib(default=attr.Factory(list))
-
-    def add_segments(self, segments):
-        """Add list of segments at once.
-
-        Args:
-            segments (list[Segment]): list of Segments to be added
-        """
-        for segment in segments:
-            self.add_segment(segment)
-
-    def add_segment(self, segment):
-        """Add single Segment.
-
-        Args:
-            segment (Segment): Segment to be added
-        """
-        new_segments = create_segments(segment, self._ref)
-        for seg in new_segments:
-            self._add_segment_r(seg)
-
-    def _readd_intersecting(self, idx, segment):
-        previous = self.segments[idx]
-        del self.segments[idx]
-        new_segs = intersect_segments(segment, previous)
-        for seg in new_segs:
-            self._add_segment_r(seg)
-
-    def _add_segment_r(self, segment):
-        if abs(segment.theta1 - segment.theta2) < THETA_EPS:
-            return
-        i = bisect.bisect(self.segments, segment)
-        if i > 0 and self.segments[i-1].theta2 > segment.theta1 + THETA_EPS:
-            self._readd_intersecting(i-1, segment)
-        elif i < len(self.segments) - 1 and \
-            self.segments[i+1].theta1 + THETA_EPS < segment.theta2:
-            self._readd_intersecting(i+1, segment)
-        else:
-            self.segments.insert(i, segment)
-

@@ -4,7 +4,7 @@ import math
 import numpy as np
 
 from segment import Segment, random_segment
-from intersection2 import IntersectionFinder, find_intersections
+from intersection import IntersectionFinder, find_intersections
 
 
 def test_add_segments():
